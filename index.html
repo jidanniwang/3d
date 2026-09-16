@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>美术馆 3D 展厅 · 网页在线审阅 (rhino3dm.js)</title>
+  <title>丹妮3D作品预览</title>
   <style>
     * {
       box-sizing: border-box;
@@ -25,179 +25,29 @@
       left: 0;
       top: 0;
     }
-    /* 顶部控制栏 */
+    /* 左上角标题徽标 */
     .header-bar {
       position: absolute;
       top: 16px;
       left: 16px;
-      right: 16px;
-      display: flex;
-      justify-content: space-between;
+      display: inline-flex;
       align-items: center;
       background: rgba(20, 20, 26, 0.88);
       backdrop-filter: blur(14px);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 12px;
-      padding: 12px 20px;
+      padding: 10px 18px;
       z-index: 10;
       box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }
     .title-box h1 {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       color: #fff;
       display: flex;
       align-items: center;
       gap: 8px;
-    }
-    .title-box p {
-      font-size: 12px;
-      color: #9a9ab0;
-      margin-top: 2px;
-    }
-    .btn-group {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .btn {
-      background: #272733;
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.15);
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn:hover {
-      background: #38384a;
-      border-color: rgba(255,255,255,0.3);
-    }
-    .btn-primary {
-      background: #b52b27;
-      border-color: #cb3530;
-    }
-    .btn-primary:hover {
-      background: #cf3833;
-    }
-
-    /* 右侧展品列表 - 默认缩进隐藏到右侧 */
-    .sidebar {
-      position: absolute;
-      top: 86px;
-      right: 0;
-      bottom: 24px;
-      width: 320px;
-      background: rgba(20, 20, 26, 0.92);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-right: none;
-      border-radius: 14px 0 0 14px;
-      padding: 16px;
-      z-index: 20;
-      display: flex;
-      flex-direction: column;
-      box-shadow: -8px 8px 32px rgba(0,0,0,0.45);
-      transform: translateX(100%); /* 默认缩进到屏幕右侧外，不挡视野 */
-      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .sidebar.open {
-      transform: translateX(0); /* 展开状态 */
-    }
-    /* 伸缩标签按钮 - 贴在右侧边缘 */
-    .sidebar-toggle-tab {
-      position: absolute;
-      left: -46px;
-      top: 20px;
-      width: 46px;
-      padding: 12px 6px;
-      background: rgba(20, 20, 26, 0.92);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-right: none;
-      border-radius: 10px 0 0 10px;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: #e5a93c;
-      box-shadow: -6px 4px 18px rgba(0,0,0,0.35);
-      transition: all 0.2s ease;
-      user-select: none;
-    }
-    .sidebar-toggle-tab:hover {
-      background: #2b2b3b;
-      color: #ffc95c;
-    }
-    .sidebar-toggle-tab .tab-icon {
-      font-size: 14px;
-      transition: transform 0.35s ease;
-    }
-    .sidebar.open .sidebar-toggle-tab .tab-icon {
-      transform: rotate(180deg);
-    }
-    .sidebar-toggle-tab .tab-text {
-      writing-mode: vertical-rl;
-      font-size: 11px;
-      letter-spacing: 2px;
-      margin-top: 6px;
-      font-weight: 500;
-    }
-    .sidebar-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #e5a93c;
       letter-spacing: 0.5px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .painting-list {
-      list-style: none;
-      overflow-y: auto;
-      flex: 1;
-      padding-right: 4px;
-    }
-    .painting-list::-webkit-scrollbar {
-      width: 4px;
-    }
-    .painting-list::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.2);
-      border-radius: 2px;
-    }
-    .painting-item {
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 8px;
-      margin-bottom: 8px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .painting-item:hover {
-      background: rgba(229, 169, 60, 0.12);
-      border-color: rgba(229, 169, 60, 0.35);
-    }
-    .painting-name {
-      font-weight: 500;
-      color: #f0f0f4;
-      display: block;
-      margin-bottom: 4px;
-    }
-    .painting-badge {
-      display: inline-block;
-      background: rgba(229, 169, 60, 0.2);
-      color: #f1b74a;
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
     }
 
     /* 加载中动画 */
@@ -266,39 +116,17 @@
 
   <div id="canvas-container"></div>
 
-  <!-- 顶部标题栏 -->
+  <!-- 顶部左上角标题 -->
   <div class="header-bar">
     <div class="title-box">
-      <h1>美术馆展厅 · 3D 全景在线审阅</h1>
+      <h1>丹妮3D作品预览</h1>
     </div>
-    <div class="btn-group">
-      <button class="btn" id="btn-reset-view">重置视角</button>
-      <button class="btn" id="btn-top-view">展厅顶视图</button>
-      <button class="btn" id="btn-toggle-wireframe">结构线框</button>
-      <button class="btn btn-primary" id="btn-toggle-sidebar">展板清单</button>
-    </div>
-  </div>
-
-  <!-- 右侧画作清单 (默认缩进，点击标签或按钮展开) -->
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-toggle-tab" id="sidebar-toggle-tab" title="展开/收起展板清单">
-      <span class="tab-icon">◀</span>
-      <span class="tab-text">展板清单</span>
-    </div>
-    <div class="sidebar-title">
-      <span>墙面展板画作 (<span id="paint-count">18</span>)</span>
-      <span style="font-size:11px; color:#888; cursor:pointer;" id="btn-close-sidebar">✕ 收起</span>
-    </div>
-    <ul class="painting-list" id="painting-list">
-      <!-- 动态插入 -->
-    </ul>
   </div>
 
   <!-- 底部操作提示 -->
   <div class="hud-hint">
     <div><b>左键拖拽</b>：360° 环视全景</div>
     <div><b>右键拖拽</b>：平移漫游 | <b>滚轮</b>：缩放推进</div>
-    <div>点击右侧展板清单可快速聚焦对应展位</div>
   </div>
 
   <!-- 加载动画 -->
@@ -410,9 +238,6 @@
       const woodMat = new THREE.MeshStandardMaterial({ color: 0x5a180f, roughness: 0.4, metalness: 0.1 });
       const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e2e34, roughness: 0.6, metalness: 0.2 });
 
-      const paintingListEl = document.getElementById('painting-list');
-      paintingListEl.innerHTML = '';
-
       object.traverse(function (child) {
         if (child.isMesh) {
           child.castShadow = true;
@@ -443,16 +268,6 @@
               child.renderOrder = 10;
             }
             paintingMeshes.push({ name: matchedKey, mesh: child });
-
-            // 侧边栏列表
-            const li = document.createElement('li');
-            li.className = 'painting-item';
-            li.innerHTML = `
-              <span class="painting-name">${matchedKey}</span>
-              <span class="painting-badge">展板画作</span>
-            `;
-            li.onclick = () => focusOnMesh(child);
-            paintingListEl.appendChild(li);
           } else if (matName.includes('红木') || objName.includes('红木') || objName.includes('圈椅') || objName.includes('画案')) {
             child.material = woodMat;
           } else if (matName.includes('地') || objName.includes('地')) {
@@ -498,50 +313,6 @@
       alert('加载展厅模型失败: ' + error);
       loadingOverlay.style.display = 'none';
     });
-
-    // 聚焦特定展画
-    function focusOnMesh(mesh) {
-      const box = new THREE.Box3().setFromObject(mesh);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-
-      controls.target.copy(center);
-      camera.position.set(center.x, center.y + maxDim * 0.2, center.z + maxDim * 2.2);
-      controls.update();
-    }
-
-    // 重置视角
-    document.getElementById('btn-reset-view').onclick = () => {
-      camera.position.copy(initialCameraState.pos);
-      controls.target.copy(initialCameraState.target);
-      controls.update();
-    };
-
-    // 侧边栏展开/收起切换
-    const sidebarEl = document.getElementById('sidebar');
-    const toggleSidebar = () => sidebarEl.classList.toggle('open');
-    document.getElementById('sidebar-toggle-tab').onclick = toggleSidebar;
-    document.getElementById('btn-toggle-sidebar').onclick = toggleSidebar;
-    document.getElementById('btn-close-sidebar').onclick = () => sidebarEl.classList.remove('open');
-
-    // 顶视图
-    document.getElementById('btn-top-view').onclick = () => {
-      camera.position.set(0, 12000, 0);
-      controls.target.set(0, 0, 0);
-      controls.update();
-    };
-
-    // 线框模式
-    document.getElementById('btn-toggle-wireframe').onclick = (e) => {
-      isWireframe = !isWireframe;
-      e.target.style.background = isWireframe ? '#b52b27' : '#272733';
-      if (currentModel) {
-        currentModel.traverse((child) => {
-          if (child.isMesh && child.material) child.material.wireframe = isWireframe;
-        });
-      }
-    };
 
     // 响应屏幕尺寸变化
     window.addEventListener('resize', () => {

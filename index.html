@@ -829,7 +829,7 @@
       let targetUrl = work.filename;
       let blobUrl = null;
 
-      if (work.isLocal && (work.file || work.buffer)) {
+      if (work.file || work.buffer) {
         const blob = work.file ? work.file : new Blob([work.buffer.slice(0)]);
         blobUrl = URL.createObjectURL(blob);
         targetUrl = blobUrl;
@@ -845,6 +845,27 @@
         }
       }, function (error) {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
+
+        // 如果 GitHub Pages 静态 CDN 仍在构建中返回 404，智能无缝回退到 raw.githubusercontent.com (0秒实时生效)
+        const errStr = String(error);
+        if (errStr.includes('404') && !targetUrl.startsWith('blob:') && !targetUrl.includes('raw.githubusercontent.com')) {
+          const rawFallbackUrl = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/main/${work.filename}`;
+          loadingText.textContent = `GitHub Pages 正在构建部署，切换至 GitHub 实时高速通道...`;
+          loader.load(rawFallbackUrl, function (object) {
+            onModelLoaded(object, work);
+          }, function (xhr) {
+            if (xhr.total > 0) {
+              const percent = Math.round((xhr.loaded / xhr.total) * 100);
+              loadingText.textContent = `正在从实时通道传输数据... ${percent}%`;
+            }
+          }, function (err2) {
+            console.error(err2);
+            alert(`加载作品【${work.title}】失败: ${error}\n（提示：若文件刚刚上传，GitHub 正在后台部署中，请稍候 30 秒刷新即可）`);
+            loadingOverlay.style.display = 'none';
+          });
+          return;
+        }
+
         console.error(error);
         alert(`加载作品【${work.title}】失败: ` + error);
         loadingOverlay.style.display = 'none';
@@ -1298,14 +1319,24 @@
           filename: file.name,
           size: fileSizeStr,
           createdAt: new Date().toISOString(),
+          hasTextures: false,
+          file: file
+        };
+
+        const manifestItem = {
+          id: newWorkItem.id,
+          title: newWorkItem.title,
+          filename: newWorkItem.filename,
+          size: newWorkItem.size,
+          createdAt: newWorkItem.createdAt,
           hasTextures: false
         };
 
         const existingIdx = remoteList.findIndex(w => w.filename === file.name);
         if (existingIdx !== -1) {
-          remoteList[existingIdx] = newWorkItem;
+          remoteList[existingIdx] = manifestItem;
         } else {
-          remoteList.push(newWorkItem);
+          remoteList.push(manifestItem);
         }
 
         const newManifestStr = JSON.stringify(remoteList, null, 2);

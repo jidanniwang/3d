@@ -165,23 +165,115 @@
       color: #ffc95c;
     }
 
-    /* 底部操作指引 (移至左下偏上方，避免与底部标签重叠) */
+    /* 底部操作指引与漫游速度面板 */
     .hud-hint {
       position: absolute;
       bottom: 84px;
       left: 20px;
-      background: rgba(20, 20, 26, 0.82);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
-      padding: 8px 14px;
+      background: rgba(20, 20, 26, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 10px 14px;
       font-size: 12px;
       color: #9a9ab0;
       z-index: 10;
       line-height: 1.5;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      min-width: 290px;
+      transition: all 0.25s ease;
     }
     .hud-hint b {
       color: #fff;
+    }
+    .hud-hint-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .hud-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #eaeaf2;
+      letter-spacing: 0.5px;
+    }
+    .btn-speed-toggle {
+      background: rgba(229, 169, 60, 0.12);
+      border: 1px solid rgba(229, 169, 60, 0.3);
+      color: #f1b74a;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .btn-speed-toggle:hover {
+      background: rgba(229, 169, 60, 0.25);
+      border-color: #f1b74a;
+      color: #ffc95c;
+    }
+    .hud-speed-popup {
+      display: none;
+      background: rgba(14, 14, 18, 0.9);
+      border: 1px solid rgba(229, 169, 60, 0.25);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .hud-speed-popup.show {
+      display: flex;
+    }
+    .speed-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+    }
+    .speed-slider-row input[type="range"] {
+      flex: 1;
+      height: 4px;
+      accent-color: #e5a93c;
+      cursor: pointer;
+    }
+    .speed-value {
+      color: #f1b74a;
+      font-weight: 600;
+      min-width: 32px;
+      text-align: right;
+    }
+    .speed-presets {
+      display: flex;
+      gap: 4px;
+    }
+    .btn-preset {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #aaa;
+      border-radius: 4px;
+      padding: 2px 0;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-preset:hover, .btn-preset.active {
+      background: rgba(229, 169, 60, 0.2);
+      border-color: #e5a93c;
+      color: #f1b74a;
+    }
+    .hud-hint-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 11px;
     }
 
     /* 右侧伸缩图层与展品弹窗 */
@@ -623,10 +715,28 @@
       color: #9c6204;
     }
     body.light-theme .hud-hint {
+      background: rgba(255, 255, 255, 0.92);
+      border-color: rgba(0, 0, 0, 0.1);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
       color: #555;
     }
     body.light-theme .hud-hint b {
       color: #111;
+    }
+    body.light-theme .hud-hint-top {
+      border-bottom-color: rgba(0, 0, 0, 0.08);
+    }
+    body.light-theme .hud-title {
+      color: #222;
+    }
+    body.light-theme .hud-speed-popup {
+      background: rgba(245, 245, 248, 0.96);
+      border-color: rgba(229, 169, 60, 0.4);
+    }
+    body.light-theme .btn-preset {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.08);
+      color: #555;
     }
   </style>
 
@@ -707,12 +817,36 @@
     </div>
   </div>
 
-  <!-- 底部操作提示 -->
-  <div class="hud-hint">
-    <div><b>左键拖拽</b>：360° 环视全景</div>
-    <div><b>右键拖拽</b>：平移漫游 | <b>滚轮</b>：缩放推进</div>
-    <div><b>方向键 / WASD</b>：前后左右移动镜头 (Shift 加速)</div>
-    <div>拖拽任意本地 <b>.3dm</b> 进窗口可直接添加预览</div>
+  <!-- 底部操作提示与漫游速度设置 -->
+  <div class="hud-hint" id="hud-hint">
+    <div class="hud-hint-top">
+      <span class="hud-title">🕹️ 键盘与漫游操作</span>
+      <button class="btn-speed-toggle" id="btn-speed-toggle" title="展开/收起移动速度设置">
+        <span>🎚️ 漫游速度</span>
+        <b id="speed-tag">0.6x</b>
+      </button>
+    </div>
+
+    <!-- 弹出设置滑轮面板 -->
+    <div class="hud-speed-popup show" id="hud-speed-popup">
+      <div class="speed-slider-row" id="speed-slider-row" title="支持拖拽滑块或在区域内直接滚动鼠标滑轮微调速度">
+        <span>移动尺度:</span>
+        <input type="range" id="speed-slider" min="0.1" max="2.5" step="0.05" value="0.6">
+        <span class="speed-value" id="speed-value-text">0.6x</span>
+      </div>
+      <div class="speed-presets">
+        <button class="btn-preset" data-val="0.2">微调 0.2x</button>
+        <button class="btn-preset active" data-val="0.6">散步 0.6x</button>
+        <button class="btn-preset" data-val="1.2">快步 1.2x</button>
+        <button class="btn-preset" data-val="2.0">急速 2.0x</button>
+      </div>
+    </div>
+
+    <div class="hud-hint-body">
+      <div><b>W / S / 方向键</b>：前后移动 | <b>A / D</b>：左右平移</div>
+      <div><b>Q / E</b>：原地左旋 / 原地右旋 🔄</div>
+      <div><b>左键拖拽</b>：360° 环视 | <b>滚轮</b>：缩放推进 (Shift 加速)</div>
+    </div>
   </div>
 
   <!-- 加载动画 -->
@@ -1748,8 +1882,60 @@
     });
 
     // ==========================================
-    // 9. 键盘方向键与 WASD 漫游移动镜头
+    // 9. 漫游速度滑块控制与键盘漫游 (QE 原地转向)
     // ==========================================
+    let currentMoveSpeed = parseFloat(localStorage.getItem('3d_walk_speed') || '0.6');
+    const btnSpeedToggle = document.getElementById('btn-speed-toggle');
+    const hudSpeedPopup = document.getElementById('hud-speed-popup');
+    const speedSlider = document.getElementById('speed-slider');
+    const speedValueText = document.getElementById('speed-value-text');
+    const speedTag = document.getElementById('speed-tag');
+    const presetButtons = document.querySelectorAll('.btn-preset');
+
+    function setMoveSpeed(val) {
+      currentMoveSpeed = Math.min(2.5, Math.max(0.1, Math.round(val * 100) / 100));
+      localStorage.setItem('3d_walk_speed', currentMoveSpeed.toString());
+
+      if (speedSlider) speedSlider.value = currentMoveSpeed;
+      if (speedValueText) speedValueText.textContent = `${currentMoveSpeed.toFixed(1)}x`;
+      if (speedTag) speedTag.textContent = `${currentMoveSpeed.toFixed(1)}x`;
+
+      presetButtons.forEach(btn => {
+        const pVal = parseFloat(btn.dataset.val);
+        btn.classList.toggle('active', Math.abs(pVal - currentMoveSpeed) < 0.08);
+      });
+    }
+
+    if (btnSpeedToggle && hudSpeedPopup) {
+      btnSpeedToggle.onclick = (e) => {
+        e.stopPropagation();
+        hudSpeedPopup.classList.toggle('show');
+      };
+    }
+
+    if (speedSlider) {
+      speedSlider.oninput = () => {
+        setMoveSpeed(parseFloat(speedSlider.value));
+      };
+    }
+
+    // 支持在速度面板上直接滚动鼠标滑轮微调灵敏度
+    if (hudSpeedPopup) {
+      hudSpeedPopup.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const step = (e.deltaY < 0) ? 0.05 : -0.05;
+        setMoveSpeed(currentMoveSpeed + step);
+      }, { passive: false });
+    }
+
+    presetButtons.forEach(btn => {
+      btn.onclick = () => {
+        setMoveSpeed(parseFloat(btn.dataset.val));
+      };
+    });
+
+    setMoveSpeed(currentMoveSpeed);
+
     const keyState = {
       ArrowUp: false,
       ArrowDown: false,
@@ -1803,13 +1989,24 @@
       const delta = Math.min((now - lastFrameTime) / 1000, 0.1);
       lastFrameTime = now;
 
-      // 检查是否有任何移动按键被激活
+      // 1. Q / E 原地左旋与右旋 (保持摄像机位置不变，旋转观察朝向与目标点)
+      const turnLeft = keyState.KeyQ;
+      const turnRight = keyState.KeyE;
+      if (turnLeft || turnRight) {
+        const rotSpeed = 1.2 * Math.max(0.6, Math.min(1.8, currentMoveSpeed)) * delta;
+        const angle = turnLeft ? rotSpeed : -rotSpeed;
+        const offset = controls.target.clone().sub(camera.position);
+        offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+        controls.target.copy(camera.position).add(offset);
+      }
+
+      // 2. 检查是否有前后左右位移按键激活
       const moveForward = keyState.ArrowUp || keyState.KeyW;
       const moveBackward = keyState.ArrowDown || keyState.KeyS;
       const moveLeft = keyState.ArrowLeft || keyState.KeyA;
       const moveRight = keyState.ArrowRight || keyState.KeyD;
-      const moveUp = keyState.KeyE || keyState.Space || keyState.PageUp;
-      const moveDown = keyState.KeyQ || keyState.KeyC || keyState.PageDown;
+      const moveUp = keyState.Space || keyState.PageUp;
+      const moveDown = keyState.KeyC || keyState.PageDown;
 
       if (!moveForward && !moveBackward && !moveLeft && !moveRight && !moveUp && !moveDown) {
         return;
@@ -1849,13 +2046,13 @@
       if (moveVec.lengthSq() === 0) return;
       moveVec.normalize();
 
-      // 根据摄像机与当前焦点的距离智能自适应移动速度 (兼顾宏观大场景与微观特写)
+      // 根据摄像机与当前焦点的距离与滑块倍率计算细腻平滑的位移尺度
       const dist = camera.position.distanceTo(controls.target);
-      let speed = Math.max(120, dist * 0.85);
+      let speed = Math.max(35, dist * 0.22) * currentMoveSpeed;
 
-      // Shift 键加速 (2.5倍)
+      // Shift 键加速 (2.2倍)
       if (keyState.ShiftLeft || keyState.ShiftRight) {
-        speed *= 2.5;
+        speed *= 2.2;
       }
 
       const displacement = moveVec.multiplyScalar(speed * delta);

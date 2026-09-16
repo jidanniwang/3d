@@ -711,6 +711,7 @@
   <div class="hud-hint">
     <div><b>左键拖拽</b>：360° 环视全景</div>
     <div><b>右键拖拽</b>：平移漫游 | <b>滚轮</b>：缩放推进</div>
+    <div><b>方向键 / WASD</b>：前后左右移动镜头 (Shift 加速)</div>
     <div>拖拽任意本地 <b>.3dm</b> 进窗口可直接添加预览</div>
   </div>
 
@@ -1746,9 +1747,126 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
+    // ==========================================
+    // 9. 键盘方向键与 WASD 漫游移动镜头
+    // ==========================================
+    const keyState = {
+      ArrowUp: false,
+      ArrowDown: false,
+      ArrowLeft: false,
+      ArrowRight: false,
+      KeyW: false,
+      KeyS: false,
+      KeyA: false,
+      KeyD: false,
+      KeyQ: false,
+      KeyE: false,
+      KeyC: false,
+      Space: false,
+      PageUp: false,
+      PageDown: false,
+      ShiftLeft: false,
+      ShiftRight: false
+    };
+
+    const monitoredKeys = new Set(Object.keys(keyState));
+
+    window.addEventListener('keydown', (e) => {
+      // 避免在输入框（如 Token 设置）打字时误触移动
+      const tag = document.activeElement ? document.activeElement.tagName : '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (monitoredKeys.has(e.code)) {
+        keyState[e.code] = true;
+        // 阻止方向键、空格、翻页键导致浏览器窗口整体滚动
+        if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code.startsWith('Page')) {
+          e.preventDefault();
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (monitoredKeys.has(e.code)) {
+        keyState[e.code] = false;
+      }
+    });
+
+    // 窗口失去焦点时重置按键状态，防止移动黏着
+    window.addEventListener('blur', () => {
+      for (const k in keyState) keyState[k] = false;
+    });
+
+    let lastFrameTime = performance.now();
+
+    function updateKeyboardNavigation() {
+      const now = performance.now();
+      const delta = Math.min((now - lastFrameTime) / 1000, 0.1);
+      lastFrameTime = now;
+
+      // 检查是否有任何移动按键被激活
+      const moveForward = keyState.ArrowUp || keyState.KeyW;
+      const moveBackward = keyState.ArrowDown || keyState.KeyS;
+      const moveLeft = keyState.ArrowLeft || keyState.KeyA;
+      const moveRight = keyState.ArrowRight || keyState.KeyD;
+      const moveUp = keyState.KeyE || keyState.Space || keyState.PageUp;
+      const moveDown = keyState.KeyQ || keyState.KeyC || keyState.PageDown;
+
+      if (!moveForward && !moveBackward && !moveLeft && !moveRight && !moveUp && !moveDown) {
+        return;
+      }
+
+      // 获取当前视线方向
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+
+      // 计算地面水平平移方向 (XZ 平面)
+      let forwardDir = new THREE.Vector3(forward.x, 0, forward.z);
+      let rightDir = new THREE.Vector3();
+
+      if (forwardDir.lengthSq() > 0.001) {
+        forwardDir.normalize();
+        rightDir.crossVectors(forwardDir, new THREE.Vector3(0, 1, 0)).normalize();
+      } else {
+        // 垂直俯视/仰视情况 (如顶视图)
+        const upProj = new THREE.Vector3(camera.up.x, 0, camera.up.z);
+        if (upProj.lengthSq() > 0.001) {
+          forwardDir = upProj.normalize();
+        } else {
+          forwardDir = new THREE.Vector3(0, 0, -1);
+        }
+        rightDir.crossVectors(forwardDir, new THREE.Vector3(0, 1, 0)).normalize();
+      }
+
+      // 综合移动方向向量
+      const moveVec = new THREE.Vector3();
+      if (moveForward) moveVec.add(forwardDir);
+      if (moveBackward) moveVec.sub(forwardDir);
+      if (moveRight) moveVec.add(rightDir);
+      if (moveLeft) moveVec.sub(rightDir);
+      if (moveUp) moveVec.y += 1;
+      if (moveDown) moveVec.y -= 1;
+
+      if (moveVec.lengthSq() === 0) return;
+      moveVec.normalize();
+
+      // 根据摄像机与当前焦点的距离智能自适应移动速度 (兼顾宏观大场景与微观特写)
+      const dist = camera.position.distanceTo(controls.target);
+      let speed = Math.max(120, dist * 0.85);
+
+      // Shift 键加速 (2.5倍)
+      if (keyState.ShiftLeft || keyState.ShiftRight) {
+        speed *= 2.5;
+      }
+
+      const displacement = moveVec.multiplyScalar(speed * delta);
+      camera.position.add(displacement);
+      controls.target.add(displacement);
+    }
+
     // 渲染循环
     function animate() {
       requestAnimationFrame(animate);
+      updateKeyboardNavigation();
       controls.update();
       renderer.render(scene, camera);
     }

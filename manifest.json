@@ -1,0 +1,18 @@
+[
+  {
+    "id": "gallery_main",
+    "title": "美术馆展厅全景",
+    "filename": "gallery_optimized.3dm",
+    "size": "725 KB",
+    "createdAt": "2026-03-15T10:00:00Z",
+    "hasTextures": true
+  },
+  {
+    "id": "furniture_study",
+    "title": "明式文房家具精粹",
+    "filename": "furniture_study.3dm",
+    "size": "210 KB",
+    "createdAt": "2026-03-16T12:00:00Z",
+    "hasTextures": false
+  }
+]

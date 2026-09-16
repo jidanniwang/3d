@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>美术馆 3D 展厅 · 网页在线审阅 (rhino3dm.js)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #111115;
+      color: #e5e5eb;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    /* 顶部控制栏 */
+    .header-bar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(20, 20, 26, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 12px 20px;
+      z-index: 10;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .title-box h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .title-box p {
+      font-size: 12px;
+      color: #9a9ab0;
+      margin-top: 2px;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn {
+      background: #272733;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      background: #38384a;
+      border-color: rgba(255,255,255,0.3);
+    }
+    .btn-primary {
+      background: #b52b27;
+      border-color: #cb3530;
+    }
+    .btn-primary:hover {
+      background: #cf3833;
+    }
+
+    /* 右侧展品列表 - 默认缩进隐藏到右侧 */
+    .sidebar {
+      position: absolute;
+      top: 86px;
+      right: 0;
+      bottom: 24px;
+      width: 320px;
+      background: rgba(20, 20, 26, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-right: none;
+      border-radius: 14px 0 0 14px;
+      padding: 16px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -8px 8px 32px rgba(0,0,0,0.45);
+      transform: translateX(100%); /* 默认缩进到屏幕右侧外，不挡视野 */
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sidebar.open {
+      transform: translateX(0); /* 展开状态 */
+    }
+    /* 伸缩标签按钮 - 贴在右侧边缘 */
+    .sidebar-toggle-tab {
+      position: absolute;
+      left: -46px;
+      top: 20px;
+      width: 46px;
+      padding: 12px 6px;
+      background: rgba(20, 20, 26, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-right: none;
+      border-radius: 10px 0 0 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #e5a93c;
+      box-shadow: -6px 4px 18px rgba(0,0,0,0.35);
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .sidebar-toggle-tab:hover {
+      background: #2b2b3b;
+      color: #ffc95c;
+    }
+    .sidebar-toggle-tab .tab-icon {
+      font-size: 14px;
+      transition: transform 0.35s ease;
+    }
+    .sidebar.open .sidebar-toggle-tab .tab-icon {
+      transform: rotate(180deg);
+    }
+    .sidebar-toggle-tab .tab-text {
+      writing-mode: vertical-rl;
+      font-size: 11px;
+      letter-spacing: 2px;
+      margin-top: 6px;
+      font-weight: 500;
+    }
+    .sidebar-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e5a93c;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .painting-list {
+      list-style: none;
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 4px;
+    }
+    .painting-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    .painting-list::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+    }
+    .painting-item {
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .painting-item:hover {
+      background: rgba(229, 169, 60, 0.12);
+      border-color: rgba(229, 169, 60, 0.35);
+    }
+    .painting-name {
+      font-weight: 500;
+      color: #f0f0f4;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .painting-badge {
+      display: inline-block;
+      background: rgba(229, 169, 60, 0.2);
+      color: #f1b74a;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* 加载中动画 */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 15, 18, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.3s;
+    }
+    .spinner {
+      width: 46px;
+      height: 46px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #e5a93c;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 14px;
+      color: #fff;
+    }
+
+    /* 底部操作指引 */
+    .hud-hint {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      background: rgba(20, 20, 26, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 12px;
+      color: #9a9ab0;
+      z-index: 10;
+      line-height: 1.6;
+    }
+    .hud-hint b {
+      color: #fff;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <!-- 顶部标题栏 -->
+  <div class="header-bar">
+    <div class="title-box">
+      <h1>美术馆展厅 · 3D 全景在线审阅</h1>
+    </div>
+    <div class="btn-group">
+      <button class="btn" id="btn-reset-view">重置视角</button>
+      <button class="btn" id="btn-top-view">展厅顶视图</button>
+      <button class="btn" id="btn-toggle-wireframe">结构线框</button>
+      <button class="btn btn-primary" id="btn-toggle-sidebar">展板清单</button>
+    </div>
+  </div>
+
+  <!-- 右侧画作清单 (默认缩进，点击标签或按钮展开) -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-toggle-tab" id="sidebar-toggle-tab" title="展开/收起展板清单">
+      <span class="tab-icon">◀</span>
+      <span class="tab-text">展板清单</span>
+    </div>
+    <div class="sidebar-title">
+      <span>墙面展板画作 (<span id="paint-count">18</span>)</span>
+      <span style="font-size:11px; color:#888; cursor:pointer;" id="btn-close-sidebar">✕ 收起</span>
+    </div>
+    <ul class="painting-list" id="painting-list">
+      <!-- 动态插入 -->
+    </ul>
+  </div>
+
+  <!-- 底部操作提示 -->
+  <div class="hud-hint">
+    <div><b>左键拖拽</b>：360° 环视全景</div>
+    <div><b>右键拖拽</b>：平移漫游 | <b>滚轮</b>：缩放推进</div>
+    <div>点击右侧展板清单可快速聚焦对应展位</div>
+  </div>
+
+  <!-- 加载动画 -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">正在通过 rhino3dm.wasm 加载展厅结构...</div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { Rhino3dmLoader } from 'three/addons/loaders/3DMLoader.js';
+
+    // 1. 初始化场景与摄影机
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x18181f);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, 100000);
+    camera.position.set(0, 1500, 3000);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxDistance = 50000;
+
+    // 2. 展厅专业室内照明 (多点布光，让墙面展板和红木家具清晰自然)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    scene.add(ambientLight);
+
+    const hemiLight = new THREE.HemisphereLight(0xfff6ea, 0x333344, 0.8);
+    scene.add(hemiLight);
+
+    const mainSpot = new THREE.DirectionalLight(0xfff8ee, 1.5);
+    mainSpot.position.set(3000, 5000, 3000);
+    mainSpot.castShadow = true;
+    mainSpot.shadow.mapSize.width = 2048;
+    mainSpot.shadow.mapSize.height = 2048;
+    scene.add(mainSpot);
+
+    const fillSpot = new THREE.DirectionalLight(0xddf0ff, 0.8);
+    fillSpot.position.set(-3000, 4000, -3000);
+    scene.add(fillSpot);
+
+    // 3. 18 张墙面贴图路径映射表 (已无损压缩并收纳在 gallery_textures 目录)
+    const textureMap = {
+      '0320_大師立像(30歲)': 'gallery_textures/0320_大師立像(30歲).png',
+      'lifted 0908_墨寶牆_126x47.5': 'gallery_textures/lifted 0910_墨寶牆_126x47.5.jpg',
+      '0908_留言板_v4': 'gallery_textures/0910_留言板_v4.jpg',
+      '0315_文化教育_(W)84X(H)36in_English': 'gallery_textures/0315_文化教育_(W)84X(H)36in_English.jpg',
+      '0315_文化教育_(W)84X(H)36in_中文': 'gallery_textures/0315_文化教育_(W)84X(H)36in_中文.jpg',
+      '0315_以教育培养_(W)84X(H)36in_中文': 'gallery_textures/0315_以教育培养_(W)84X(H)36in_中文.jpg',
+      '0315_以教育培养_(W)84X(H)36in_English': 'gallery_textures/0315_以教育培养_(W)84X(H)36in_English.jpg',
+      '0315_慈善_(W)84X(H)36in_中文': 'gallery_textures/0315_慈善_(W)84X(H)36in_中文.jpg',
+      '0315_慈善_(W)84X(H)36in_English': 'gallery_textures/0315_慈善_(W)84X(H)36in_English.jpg',
+      '0315_共修_(W)84X(H)36in_中文': 'gallery_textures/0315_共修_(W)84X(H)36in_中文.jpg',
+      '0315_共修_(W)84X(H)36in_English': 'gallery_textures/0315_共修_(W)84X(H)36in_English.jpg',
+      '0315_佛法西来_(W)84X(H)36in_English': 'gallery_textures/0315_佛法西来_(W)84X(H)36in_English.jpg',
+      '0315_佛法西来_(W)84X(H)36in_中文': 'gallery_textures/0315_佛法西来_(W)84X(H)36in_中文.jpg',
+      '0913_书签板 4': 'gallery_textures/0913_书签板 4.jpg',
+      '0320_大師立像(70.80歲)': 'gallery_textures/0320_大師立像(70.80歲).png',
+      '0908_回向': 'gallery_textures/0908_回向.jpg',
+      '0913_佛光山全球道場': 'gallery_textures/0913_佛光山全球道場.jpg',
+      '0913_exterior': 'gallery_textures/0913_exterior.jpg'
+    };
+
+    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+    const textureLoader = new THREE.TextureLoader();
+    const loadedTextures = {};
+    for (const [key, url] of Object.entries(textureMap)) {
+      const tex = textureLoader.load(url);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = maxAnisotropy;
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      loadedTextures[key] = tex;
+    }
+
+    // 4. 配置 Rhino3dmLoader
+    const loader = new Rhino3dmLoader();
+    loader.setLibraryPath('https://cdn.jsdelivr.net/npm/rhino3dm@8.4.0/');
+
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingText = document.getElementById('loading-text');
+
+    let currentModel = null;
+    let initialCameraState = { pos: camera.position.clone(), target: controls.target.clone() };
+    let isWireframe = false;
+    const paintingMeshes = [];
+
+    // 5. 加载经 rhino3dm 提取压缩的高性能 3dm 展厅模型
+    const modelUrl = 'gallery_optimized.3dm';
+    loader.load(modelUrl, function (object) {
+      currentModel = object;
+
+      // 遍历所有构件，贴附画作与建筑材质
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.85, metalness: 0.05 });
+      const woodMat = new THREE.MeshStandardMaterial({ color: 0x5a180f, roughness: 0.4, metalness: 0.1 });
+      const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e2e34, roughness: 0.6, metalness: 0.2 });
+
+      const paintingListEl = document.getElementById('painting-list');
+      paintingListEl.innerHTML = '';
+
+      object.traverse(function (child) {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+
+          const matName = (child.material && child.material.name) || '';
+          const objName = child.name || '';
+
+          // 匹配墙面画作
+          let matchedKey = null;
+          for (const key of Object.keys(textureMap)) {
+            if (matName.includes(key) || objName.includes(key)) {
+              matchedKey = key;
+              break;
+            }
+          }
+
+          if (matchedKey && loadedTextures[matchedKey]) {
+            const isCutout = matchedKey.includes('立像');
+            child.material = new THREE.MeshBasicMaterial({
+              map: loadedTextures[matchedKey],
+              side: THREE.DoubleSide,
+              transparent: isCutout,
+              alphaTest: isCutout ? 0.2 : 0,
+              depthWrite: !isCutout
+            });
+            if (isCutout) {
+              child.renderOrder = 10;
+            }
+            paintingMeshes.push({ name: matchedKey, mesh: child });
+
+            // 侧边栏列表
+            const li = document.createElement('li');
+            li.className = 'painting-item';
+            li.innerHTML = `
+              <span class="painting-name">${matchedKey}</span>
+              <span class="painting-badge">展板画作</span>
+            `;
+            li.onclick = () => focusOnMesh(child);
+            paintingListEl.appendChild(li);
+          } else if (matName.includes('红木') || objName.includes('红木') || objName.includes('圈椅') || objName.includes('画案')) {
+            child.material = woodMat;
+          } else if (matName.includes('地') || objName.includes('地')) {
+            child.material = floorMat;
+          } else {
+            child.material = wallMat;
+          }
+        }
+      });
+
+      // 展厅坐标校准 (Rhino Z 朝上)
+      object.rotation.x = -Math.PI / 2;
+      scene.add(object);
+
+      // 计算居中包围盒
+      const bbox = new THREE.Box3().setFromObject(object);
+      const center = bbox.getCenter(new THREE.Vector3());
+      const size = bbox.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      // 贴合地面
+      object.position.x = -center.x;
+      object.position.z = -center.z;
+      object.position.y = -bbox.min.y;
+
+      const fov = camera.fov * (Math.PI / 180);
+      let cameraDistance = Math.abs(maxDim / Math.sin(fov / 2)) * 0.75;
+      camera.position.set(cameraDistance * 0.7, cameraDistance * 0.5, cameraDistance * 0.7);
+      controls.target.set(0, size.y / 2, 0);
+      controls.update();
+
+      initialCameraState.pos = camera.position.clone();
+      initialCameraState.target = controls.target.clone();
+
+      loadingOverlay.style.display = 'none';
+    }, function (xhr) {
+      if (xhr.total > 0) {
+        const percent = Math.round((xhr.loaded / xhr.total) * 100);
+        loadingText.textContent = `正在传输模型数据... ${percent}%`;
+      }
+    }, function (error) {
+      console.error(error);
+      alert('加载展厅模型失败: ' + error);
+      loadingOverlay.style.display = 'none';
+    });
+
+    // 聚焦特定展画
+    function focusOnMesh(mesh) {
+      const box = new THREE.Box3().setFromObject(mesh);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      controls.target.copy(center);
+      camera.position.set(center.x, center.y + maxDim * 0.2, center.z + maxDim * 2.2);
+      controls.update();
+    }
+
+    // 重置视角
+    document.getElementById('btn-reset-view').onclick = () => {
+      camera.position.copy(initialCameraState.pos);
+      controls.target.copy(initialCameraState.target);
+      controls.update();
+    };
+
+    // 侧边栏展开/收起切换
+    const sidebarEl = document.getElementById('sidebar');
+    const toggleSidebar = () => sidebarEl.classList.toggle('open');
+    document.getElementById('sidebar-toggle-tab').onclick = toggleSidebar;
+    document.getElementById('btn-toggle-sidebar').onclick = toggleSidebar;
+    document.getElementById('btn-close-sidebar').onclick = () => sidebarEl.classList.remove('open');
+
+    // 顶视图
+    document.getElementById('btn-top-view').onclick = () => {
+      camera.position.set(0, 12000, 0);
+      controls.target.set(0, 0, 0);
+      controls.update();
+    };
+
+    // 线框模式
+    document.getElementById('btn-toggle-wireframe').onclick = (e) => {
+      isWireframe = !isWireframe;
+      e.target.style.background = isWireframe ? '#b52b27' : '#272733';
+      if (currentModel) {
+        currentModel.traverse((child) => {
+          if (child.isMesh && child.material) child.material.wireframe = isWireframe;
+        });
+      }
+    };
+
+    // 响应屏幕尺寸变化
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 渲染循环
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

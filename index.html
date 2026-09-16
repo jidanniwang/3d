@@ -806,28 +806,29 @@
         currentModel = null;
       }
 
-      if (work.isLocal && work.buffer) {
-        loader.parse(work.buffer, function (object) {
-          onModelLoaded(object, work);
-        }, function (error) {
-          console.error(error);
-          alert(`解析作品【${work.title}】失败: ` + error);
-          loadingOverlay.style.display = 'none';
-        });
-      } else {
-        loader.load(work.filename, function (object) {
-          onModelLoaded(object, work);
-        }, function (xhr) {
-          if (xhr.total > 0) {
-            const percent = Math.round((xhr.loaded / xhr.total) * 100);
-            loadingText.textContent = `正在传输【${work.title}】数据... ${percent}%`;
-          }
-        }, function (error) {
-          console.error(error);
-          alert(`加载作品【${work.title}】失败: ` + error);
-          loadingOverlay.style.display = 'none';
-        });
+      let targetUrl = work.filename;
+      let blobUrl = null;
+
+      if (work.isLocal && (work.file || work.buffer)) {
+        const blob = work.file ? work.file : new Blob([work.buffer.slice(0)]);
+        blobUrl = URL.createObjectURL(blob);
+        targetUrl = blobUrl;
       }
+
+      loader.load(targetUrl, function (object) {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+        onModelLoaded(object, work);
+      }, function (xhr) {
+        if (xhr.total > 0) {
+          const percent = Math.round((xhr.loaded / xhr.total) * 100);
+          loadingText.textContent = `正在传输【${work.title}】数据... ${percent}%`;
+        }
+      }, function (error) {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+        console.error(error);
+        alert(`加载作品【${work.title}】失败: ` + error);
+        loadingOverlay.style.display = 'none';
+      });
     }
 
     function onModelLoaded(object, work) {
@@ -855,9 +856,11 @@
       let paintingCount = 0;
 
       object.traverse(function (child) {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
+        if (child.isMesh || child.isLine || child.isPoints) {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
 
           const lIdx = (child.userData && child.userData.attributes) ? child.userData.attributes.layerIndex : null;
           if (lIdx !== null && layerMeshMap.has(lIdx)) {
@@ -1121,30 +1124,21 @@
     });
 
     function handleFileImport(file) {
-      const reader = new FileReader();
       const fileSizeStr = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
-      
-      loadingOverlay.style.display = 'flex';
-      loadingText.textContent = `正在读取本地文件: ${file.name}...`;
-
-      reader.onload = (e) => {
-        const buffer = e.target.result;
-        const workTitle = file.name.replace(/\.[^/.]+$/, '');
-        const newWork = {
-          id: 'local_' + Date.now(),
-          title: workTitle,
-          filename: file.name,
-          size: fileSizeStr,
-          createdAt: new Date().toISOString(),
-          isLocal: true,
-          buffer: buffer,
-          hasTextures: false
-        };
-
-        worksList.push(newWork);
-        loadModel(newWork);
+      const workTitle = file.name.replace(/\.[^/.]+$/, '');
+      const newWork = {
+        id: 'local_' + Date.now(),
+        title: workTitle,
+        filename: file.name,
+        size: fileSizeStr,
+        createdAt: new Date().toISOString(),
+        isLocal: true,
+        file: file,
+        hasTextures: false
       };
-      reader.readAsArrayBuffer(file);
+
+      worksList.push(newWork);
+      loadModel(newWork);
     }
 
     // ==========================================

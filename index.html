@@ -845,7 +845,7 @@
     <div class="hud-hint-body">
       <div><b>W / S / 方向键</b>：前后移动 | <b>A / D</b>：左右平移</div>
       <div><b>Q / E</b>：原地左旋 / 原地右旋 🔄</div>
-      <div><b>左键拖拽</b>：360° 环视 | <b>滚轮</b>：缩放推进 (Shift 加速)</div>
+      <div><b>左键拖拽</b>：以鼠标指向位置为中心旋转 | <b>双击</b>：聚焦当前点</div>
     </div>
   </div>
 
@@ -971,6 +971,11 @@
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.maxDistance = 50000;
+    controls.mouseButtons = {
+      LEFT: null, // 接管默认左键旋转，改为根据鼠标光标 3D 表面接触点就地旋转
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.PAN
+    };
 
     // 2. 专业室内照明
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
@@ -2058,6 +2063,133 @@
       const displacement = moveVec.multiplyScalar(speed * delta);
       camera.position.add(displacement);
       controls.target.add(displacement);
+    }
+
+    // ==========================================
+    // 10. 鼠标光标拾取旋转中心 (以鼠标点击位置为中心旋转)
+    // ==========================================
+    let isCursorRotating = false;
+    const activePivot = new THREE.Vector3();
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+    const cursorRaycaster = new THREE.Raycaster();
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return; // 仅接管鼠标左键
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+
+      cursorRaycaster.setFromCamera(mouse, camera);
+
+      let hitPoint = null;
+      if (currentModel) {
+        const hits = cursorRaycaster.intersectObject(currentModel, true).filter(h => h.object.visible);
+        if (hits.length > 0) {
+          hitPoint = hits[0].point.clone();
+        }
+      }
+
+      if (!hitPoint) {
+        // 若点击在背景天空，在当前焦点观察深度处确定旋转支点，保证平滑自然
+        const dist = camera.position.distanceTo(controls.target);
+        hitPoint = cursorRaycaster.ray.origin.clone().addScaledVector(cursorRaycaster.ray.direction, Math.min(dist, 5000));
+      }
+
+      activePivot.copy(hitPoint);
+      isCursorRotating = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isCursorRotating) return;
+
+      const deltaX = e.clientX - prevMouseX;
+      const deltaY = e.clientY - prevMouseY;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+
+      if (deltaX === 0 && deltaY === 0) return;
+
+      const rotSpeed = 0.0045;
+      const theta = -deltaX * rotSpeed;
+      let phi = -deltaY * rotSpeed;
+
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+
+      // 防止镜头垂直倒扣翻转 (极角保护限位)
+      const curDir = camera.getWorldDirection(new THREE.Vector3());
+      const testDir = curDir.clone().applyAxisAngle(right, phi);
+      const angleWithUp = testDir.angleTo(new THREE.Vector3(0, 1, 0));
+      if (angleWithUp < 0.06 || angleWithUp > Math.PI - 0.06) {
+        phi = 0;
+      }
+
+      // 1. 摄像机位置绕鼠标拾取点 activePivot 旋转
+      const camOffset = camera.position.clone().sub(activePivot);
+      camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), theta);
+      if (phi !== 0) camOffset.applyAxisAngle(right, phi);
+      camera.position.copy(activePivot).add(camOffset);
+
+      // 2. 摄像机姿态四元数同步旋转
+      const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), theta);
+      camera.quaternion.premultiply(qYaw);
+      if (phi !== 0) {
+        const qPitch = new THREE.Quaternion().setFromAxisAngle(right, phi);
+        camera.quaternion.premultiply(qPitch);
+      }
+
+      // 3. controls.target 同步绕 activePivot 旋转，保持视角与后续操作无缝平滑
+      const targetOffset = controls.target.clone().sub(activePivot);
+      targetOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), theta);
+      if (phi !== 0) targetOffset.applyAxisAngle(right, phi);
+      controls.target.copy(activePivot).add(targetOffset);
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (e.button === 0 && isCursorRotating) {
+        isCursorRotating = false;
+      }
+    });
+
+    // 双击模型任意表面：平滑将视角焦点定位至该点
+    renderer.domElement.addEventListener('dblclick', (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      cursorRaycaster.setFromCamera(mouse, camera);
+      if (currentModel) {
+        const hits = cursorRaycaster.intersectObject(currentModel, true).filter(h => h.object.visible);
+        if (hits.length > 0) {
+          smoothFocusPoint(hits[0].point);
+        }
+      }
+    });
+
+    function smoothFocusPoint(newTarget) {
+      const startTarget = controls.target.clone();
+      const startTime = performance.now();
+      const duration = 300;
+
+      function stepFocus() {
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        const ease = 0.5 - Math.cos(progress * Math.PI) / 2;
+
+        controls.target.lerpVectors(startTarget, newTarget, ease);
+        camera.lookAt(controls.target);
+
+        if (progress < 1) {
+          requestAnimationFrame(stepFocus);
+        }
+      }
+      stepFocus();
     }
 
     // 渲染循环

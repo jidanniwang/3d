@@ -101,6 +101,219 @@
     .hud-hint b {
       color: #fff;
     }
+
+    /* 右侧伸缩图层与展品弹窗 */
+    .sidebar {
+      position: absolute;
+      top: 16px;
+      right: 0;
+      bottom: 24px;
+      width: 330px;
+      background: rgba(20, 20, 26, 0.94);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-right: none;
+      border-radius: 16px 0 0 16px;
+      padding: 16px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -8px 8px 36px rgba(0,0,0,0.5);
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .sidebar.open {
+      transform: translateX(0);
+    }
+    /* 贴边展开把手 */
+    .sidebar-toggle-tab {
+      position: absolute;
+      left: -44px;
+      top: 24px;
+      width: 44px;
+      padding: 12px 6px;
+      background: rgba(20, 20, 26, 0.94);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-right: none;
+      border-radius: 10px 0 0 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #e5a93c;
+      box-shadow: -6px 4px 18px rgba(0,0,0,0.35);
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .sidebar-toggle-tab:hover {
+      background: #2b2b3b;
+      color: #ffc95c;
+    }
+    .sidebar-toggle-tab .tab-icon {
+      font-size: 13px;
+      transition: transform 0.35s ease;
+    }
+    .sidebar.open .sidebar-toggle-tab .tab-icon {
+      transform: rotate(180deg);
+    }
+    .sidebar-toggle-tab .tab-text {
+      writing-mode: vertical-rl;
+      font-size: 11px;
+      letter-spacing: 2px;
+      margin-top: 6px;
+      font-weight: 500;
+    }
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .sidebar-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f0f0f5;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-close {
+      font-size: 12px;
+      color: #888;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+    .btn-close:hover {
+      color: #fff;
+    }
+    /* Tab 切换栏 */
+    .tab-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 3px;
+    }
+    .tab-btn {
+      flex: 1;
+      text-align: center;
+      padding: 7px 0;
+      font-size: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #9a9ab0;
+      background: transparent;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: rgba(229, 169, 60, 0.18);
+      color: #f1b74a;
+      font-weight: 600;
+    }
+    .tab-content {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+    }
+    .tab-content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .tab-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+    /* 快捷控制栏 */
+    .quick-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: #888;
+    }
+    .action-link {
+      color: #e5a93c;
+      cursor: pointer;
+      margin-left: 8px;
+      text-decoration: underline;
+    }
+    .action-link:hover {
+      color: #ffc95c;
+    }
+    /* 列表条目 */
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .layer-item, .painting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .layer-item:hover, .painting-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(229, 169, 60, 0.3);
+    }
+    .layer-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .eye-btn {
+      cursor: pointer;
+      font-size: 14px;
+      opacity: 0.9;
+      user-select: none;
+      transition: transform 0.15s;
+    }
+    .eye-btn.hidden-layer {
+      opacity: 0.25;
+      filter: grayscale(1);
+    }
+    .layer-name {
+      color: #eaeaf2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #bbb;
+      white-space: nowrap;
+    }
+    .badge-art {
+      background: rgba(229, 169, 60, 0.18);
+      color: #f1b74a;
+    }
+    .painting-item {
+      cursor: pointer;
+    }
   </style>
 
   <script type="importmap">
@@ -120,6 +333,50 @@
   <div class="header-bar">
     <div class="title-box">
       <h1>丹妮3D作品预览</h1>
+    </div>
+  </div>
+
+  <!-- 右侧图层与展板弹窗 -->
+  <div class="sidebar open" id="sidebar">
+    <div class="sidebar-toggle-tab" id="sidebar-toggle-tab" title="展开/收起图层与展板">
+      <span class="tab-icon">◀</span>
+      <span class="tab-text">图层清单</span>
+    </div>
+    
+    <div class="sidebar-header">
+      <div class="sidebar-title">
+        <span>📐 图层与展品管理</span>
+      </div>
+      <span class="btn-close" id="btn-close-sidebar">✕ 收起</span>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-btn-layers">📂 3D 图层 (<span id="layer-count">0</span>)</button>
+      <button class="tab-btn" id="tab-btn-paintings">🖼️ 展板画作 (18)</button>
+    </div>
+
+    <!-- Tab 1: 3D 图层 -->
+    <div class="tab-content active" id="tab-layers">
+      <div class="quick-actions">
+        <span>点击眼睛图标显隐对应图层</span>
+        <div>
+          <span class="action-link" id="btn-show-all-layers">全显</span>
+          <span class="action-link" id="btn-hide-all-layers">全隐</span>
+        </div>
+      </div>
+      <ul class="item-list" id="layer-list">
+        <!-- 动态生成 -->
+      </ul>
+    </div>
+
+    <!-- Tab 2: 展板画作 -->
+    <div class="tab-content" id="tab-paintings">
+      <div class="quick-actions">
+        <span>点击快速定位展位视角</span>
+      </div>
+      <ul class="item-list" id="painting-list">
+        <!-- 动态生成 -->
+      </ul>
     </div>
   </div>
 
@@ -238,10 +495,31 @@
       const woodMat = new THREE.MeshStandardMaterial({ color: 0x5a180f, roughness: 0.4, metalness: 0.1 });
       const floorMat = new THREE.MeshStandardMaterial({ color: 0x2e2e34, roughness: 0.6, metalness: 0.2 });
 
+      // 建立图层映射表
+      const layerMeshMap = new Map();
+      if (object.userData && object.userData.layers) {
+        object.userData.layers.forEach((l, idx) => {
+          layerMeshMap.set(idx, {
+            name: l.name || `图层 ${idx}`,
+            meshes: [],
+            visible: true
+          });
+        });
+      }
+
+      const paintingListEl = document.getElementById('painting-list');
+      paintingListEl.innerHTML = '';
+
       object.traverse(function (child) {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
+
+          // 记录图层归属
+          const lIdx = (child.userData && child.userData.attributes) ? child.userData.attributes.layerIndex : null;
+          if (lIdx !== null && layerMeshMap.has(lIdx)) {
+            layerMeshMap.get(lIdx).meshes.push(child);
+          }
 
           const matName = (child.material && child.material.name) || '';
           const objName = child.name || '';
@@ -268,6 +546,16 @@
               child.renderOrder = 10;
             }
             paintingMeshes.push({ name: matchedKey, mesh: child });
+
+            // 侧边栏展板列表条目
+            const li = document.createElement('li');
+            li.className = 'painting-item';
+            li.innerHTML = `
+              <span class="layer-name">${matchedKey}</span>
+              <span class="badge badge-art">定位</span>
+            `;
+            li.onclick = () => focusOnMesh(child);
+            paintingListEl.appendChild(li);
           } else if (matName.includes('红木') || objName.includes('红木') || objName.includes('圈椅') || objName.includes('画案')) {
             child.material = woodMat;
           } else if (matName.includes('地') || objName.includes('地')) {
@@ -277,6 +565,78 @@
           }
         }
       });
+
+      // 渲染 3D 图层列表
+      const layerListEl = document.getElementById('layer-list');
+      layerListEl.innerHTML = '';
+      let activeLayerCount = 0;
+
+      layerMeshMap.forEach((layerData, idx) => {
+        if (layerData.meshes.length === 0) return; // 过滤无网格空图层
+        activeLayerCount++;
+
+        const li = document.createElement('li');
+        li.className = 'layer-item';
+
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'layer-left';
+
+        const eyeSpan = document.createElement('span');
+        eyeSpan.className = 'eye-btn';
+        eyeSpan.textContent = '👁️';
+        eyeSpan.title = '点击显示/隐藏该图层';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'layer-name';
+        nameSpan.textContent = layerData.name;
+        nameSpan.title = layerData.name;
+
+        leftDiv.appendChild(eyeSpan);
+        leftDiv.appendChild(nameSpan);
+
+        const countBadge = document.createElement('span');
+        countBadge.className = 'badge';
+        countBadge.textContent = `${layerData.meshes.length} 件`;
+
+        li.appendChild(leftDiv);
+        li.appendChild(countBadge);
+
+        // 绑定显隐事件
+        const toggleLayer = () => {
+          layerData.visible = !layerData.visible;
+          eyeSpan.classList.toggle('hidden-layer', !layerData.visible);
+          eyeSpan.textContent = layerData.visible ? '👁️' : '🙈';
+          layerData.meshes.forEach(m => { m.visible = layerData.visible; });
+        };
+        eyeSpan.onclick = toggleLayer;
+        nameSpan.onclick = toggleLayer;
+
+        layerListEl.appendChild(li);
+      });
+
+      document.getElementById('layer-count').textContent = activeLayerCount;
+
+      // 全部显隐快捷控制
+      document.getElementById('btn-show-all-layers').onclick = () => {
+        layerMeshMap.forEach(l => {
+          l.visible = true;
+          l.meshes.forEach(m => { m.visible = true; });
+        });
+        layerListEl.querySelectorAll('.eye-btn').forEach(btn => {
+          btn.classList.remove('hidden-layer');
+          btn.textContent = '👁️';
+        });
+      };
+      document.getElementById('btn-hide-all-layers').onclick = () => {
+        layerMeshMap.forEach(l => {
+          l.visible = false;
+          l.meshes.forEach(m => { m.visible = false; });
+        });
+        layerListEl.querySelectorAll('.eye-btn').forEach(btn => {
+          btn.classList.add('hidden-layer');
+          btn.textContent = '🙈';
+        });
+      };
 
       // 展厅坐标校准 (Rhino Z 朝上)
       object.rotation.x = -Math.PI / 2;
@@ -313,6 +673,44 @@
       alert('加载展厅模型失败: ' + error);
       loadingOverlay.style.display = 'none';
     });
+
+    // 聚焦特定展画
+    function focusOnMesh(mesh) {
+      const box = new THREE.Box3().setFromObject(mesh);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+
+      controls.target.copy(center);
+      camera.position.set(center.x, center.y + maxDim * 0.2, center.z + maxDim * 2.2);
+      controls.update();
+    }
+
+    // 侧边栏展开/收起切换
+    const sidebarEl = document.getElementById('sidebar');
+    const toggleSidebar = () => sidebarEl.classList.toggle('open');
+    document.getElementById('sidebar-toggle-tab').onclick = toggleSidebar;
+    document.getElementById('btn-close-sidebar').onclick = () => sidebarEl.classList.remove('open');
+
+    // Tab 切换逻辑
+    const tabBtnLayers = document.getElementById('tab-btn-layers');
+    const tabBtnPaintings = document.getElementById('tab-btn-paintings');
+    const tabLayers = document.getElementById('tab-layers');
+    const tabPaintings = document.getElementById('tab-paintings');
+
+    tabBtnLayers.onclick = () => {
+      tabBtnLayers.classList.add('active');
+      tabBtnPaintings.classList.remove('active');
+      tabLayers.classList.add('active');
+      tabPaintings.classList.remove('active');
+    };
+
+    tabBtnPaintings.onclick = () => {
+      tabBtnPaintings.classList.add('active');
+      tabBtnLayers.classList.remove('active');
+      tabPaintings.classList.add('active');
+      tabLayers.classList.remove('active');
+    };
 
     // 响应屏幕尺寸变化
     window.addEventListener('resize', () => {

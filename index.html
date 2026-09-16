@@ -667,6 +667,26 @@
     </div>
   </div>
 
+  <!-- 模态框：上传新作品确认 (本地预览 or 同步到 GitHub 仓库) -->
+  <div class="modal-backdrop" id="modal-upload">
+    <div class="modal-box">
+      <h3>📤 上传新作品</h3>
+      <p>检测到新 3DM 作品，请选择保存方式：</p>
+      <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px; margin-bottom:16px; font-size:12px; line-height:1.7;">
+        <div><b>📁 文件名称</b>: <span id="upload-file-name" style="color:#f1b74a;"></span></div>
+        <div><b>⚖️ 文件大小</b>: <span id="upload-file-size" style="color:#aaa;"></span></div>
+      </div>
+      <div style="font-size:12px; color:#888; margin-bottom:16px;">
+        💡 <b>推送到 GitHub</b>：文件将永久提交保存至你的 GitHub 仓库，全网可见，刷新不丢失。<br>
+        <span style="font-size:11px; color:#aaa;">（GitHub 网页 API 直传限制单文件 ≤ 25MB）</span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-modal btn-modal-cancel" id="btn-upload-preview-only">仅本地临时预览</button>
+        <button class="btn-modal btn-modal-confirm" id="btn-upload-to-github">☁️ 同步推送到 GitHub 仓库</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -1123,7 +1143,39 @@
       }
     });
 
+    let pendingUploadFile = null;
+    const modalUpload = document.getElementById('modal-upload');
+    const uploadFileName = document.getElementById('upload-file-name');
+    const uploadFileSize = document.getElementById('upload-file-size');
+    const btnUploadPreviewOnly = document.getElementById('btn-upload-preview-only');
+    const btnUploadToGithub = document.getElementById('btn-upload-to-github');
+
+    function arrayBufferToBase64(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      const chunkSize = 8192;
+      for (let i = 0; i < len; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunkSize, len)));
+      }
+      return btoa(binary);
+    }
+
     function handleFileImport(file) {
+      pendingUploadFile = file;
+      const fileSizeStr = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+      uploadFileName.textContent = file.name;
+      uploadFileSize.textContent = fileSizeStr;
+      modalUpload.classList.add('show');
+    }
+
+    // 选项 1：仅本地临时预览
+    btnUploadPreviewOnly.onclick = () => {
+      modalUpload.classList.remove('show');
+      if (!pendingUploadFile) return;
+      const file = pendingUploadFile;
+      pendingUploadFile = null;
+
       const fileSizeStr = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
       const workTitle = file.name.replace(/\.[^/.]+$/, '');
       const newWork = {
@@ -1139,6 +1191,163 @@
 
       worksList.push(newWork);
       loadModel(newWork);
+    };
+
+    // 选项 2：同步推送到 GitHub 仓库
+    btnUploadToGithub.onclick = async () => {
+      modalUpload.classList.remove('show');
+      if (!pendingUploadFile) return;
+      const file = pendingUploadFile;
+
+      const MAX_SIZE = 25 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        alert(`❌ 无法直接推送: 文件大小 (${(file.size / (1024*1024)).toFixed(1)} MB) 超过 GitHub 网页 API 的 25MB 限制。\n\n建议使用 optimize_3dm.py 脚本先进行轻量化抽取后再上传，或者先使用本地预览。`);
+        btnUploadPreviewOnly.click();
+        return;
+      }
+
+      const token = localStorage.getItem('gh_token');
+      if (!token) {
+        inputGhToken.value = '';
+        modalToken.classList.add('show');
+        return;
+      }
+
+      await uploadFileToGitHub(file);
+    };
+
+    async function uploadFileToGitHub(file) {
+      const token = localStorage.getItem('gh_token');
+      if (!token) return;
+
+      loadingOverlay.style.display = 'flex';
+      loadingText.textContent = `正在读取并编码【${file.name}】...`;
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const base64Content = arrayBufferToBase64(buffer);
+        const workTitle = file.name.replace(/\.[^/.]+$/, '');
+        const fileSizeStr = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+        loadingText.textContent = `正在向 GitHub 仓库上传【${file.name}】...`;
+
+        // 1. 检查同名文件是否已存在以获取 sha
+        const fileUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${file.name}`;
+        let fileSha = undefined;
+        try {
+          const checkRes = await fetch(fileUrl, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          });
+          if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            fileSha = checkData.sha;
+          }
+        } catch (_) {}
+
+        // 2. 提交文件到仓库
+        const putFileBody = {
+          message: `feat: 网页端上传新作品 ${workTitle} (${file.name})`,
+          content: base64Content
+        };
+        if (fileSha) putFileBody.sha = fileSha;
+
+        const putRes = await fetch(fileUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(putFileBody)
+        });
+
+        if (!putRes.ok) {
+          const errData = await putRes.json();
+          throw new Error(errData.message || '上传文件到 GitHub 失败');
+        }
+
+        // 3. 更新 manifest.json 清单
+        loadingText.textContent = `正在更新仓库作品清单 (manifest.json)...`;
+        const manifestUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/manifest.json`;
+        let manifestSha = undefined;
+        let remoteList = [];
+
+        try {
+          const getManifestRes = await fetch(manifestUrl, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          });
+          if (getManifestRes.ok) {
+            const manifestData = await getManifestRes.json();
+            manifestSha = manifestData.sha;
+            const decoded = decodeURIComponent(escape(atob(manifestData.content.replace(/\s/g, ''))));
+            remoteList = JSON.parse(decoded);
+          }
+        } catch (_) {
+          remoteList = worksList.filter(w => !w.isLocal);
+        }
+
+        const newWorkItem = {
+          id: 'work_' + Date.now(),
+          title: workTitle,
+          filename: file.name,
+          size: fileSizeStr,
+          createdAt: new Date().toISOString(),
+          hasTextures: false
+        };
+
+        const existingIdx = remoteList.findIndex(w => w.filename === file.name);
+        if (existingIdx !== -1) {
+          remoteList[existingIdx] = newWorkItem;
+        } else {
+          remoteList.push(newWorkItem);
+        }
+
+        const newManifestStr = JSON.stringify(remoteList, null, 2);
+        const newManifestBase64 = btoa(unescape(encodeURIComponent(newManifestStr)));
+
+        const putManifestBody = {
+          message: `update: 同步添加新作品 ${workTitle} 到作品清单`,
+          content: newManifestBase64
+        };
+        if (manifestSha) putManifestBody.sha = manifestSha;
+
+        await fetch(manifestUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(putManifestBody)
+        });
+
+        // 4. 更新本地内存列表与当前视图
+        const localIdx = worksList.findIndex(w => w.filename === file.name);
+        if (localIdx !== -1) {
+          worksList[localIdx] = newWorkItem;
+        } else {
+          worksList.push(newWorkItem);
+        }
+
+        loadingOverlay.style.display = 'none';
+        alert(`🎉 作品【${workTitle}】已成功上传并永久保存至 GitHub 仓库！刷新页面不会丢失。`);
+        pendingUploadFile = null;
+        loadModel(newWorkItem);
+
+      } catch (err) {
+        loadingOverlay.style.display = 'none';
+        console.error(err);
+        alert(`❌ 保存到 GitHub 失败: ${err.message}\n将转为本地临时预览。`);
+        if (pendingUploadFile) {
+          btnUploadPreviewOnly.click();
+        }
+      }
     }
 
     // ==========================================
@@ -1175,7 +1384,9 @@
       localStorage.setItem('gh_token', token);
       modalToken.classList.remove('show');
       alert('已成功保存 GitHub 同步授权！');
-      if (pendingDeleteWork) {
+      if (pendingUploadFile) {
+        uploadFileToGitHub(pendingUploadFile);
+      } else if (pendingDeleteWork) {
         executeDelete(pendingDeleteWork);
       }
     };

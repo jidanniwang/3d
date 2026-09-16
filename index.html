@@ -839,9 +839,15 @@
         if (blobUrl) URL.revokeObjectURL(blobUrl);
         onModelLoaded(object, work);
       }, function (xhr) {
-        if (xhr.total > 0) {
-          const percent = Math.round((xhr.loaded / xhr.total) * 100);
+        if (xhr.lengthComputable && xhr.total > 0 && xhr.total >= xhr.loaded) {
+          const percent = Math.min(100, Math.round((xhr.loaded / xhr.total) * 100));
           loadingText.textContent = `正在传输【${work.title}】数据... ${percent}%`;
+        } else {
+          // 处理 HTTP Gzip/Brotli 压缩传输导致的 loaded > total 异常比例问题
+          const loadedKB = Math.round(xhr.loaded / 1024);
+          let percent = (xhr.total > 0) ? Math.round((xhr.loaded / xhr.total) * 100) : 0;
+          if (percent > 100) percent = 99;
+          loadingText.textContent = `正在传输【${work.title}】数据... ${percent}% (${loadedKB} KB)`;
         }
       }, function (error) {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
@@ -854,9 +860,14 @@
           loader.load(rawFallbackUrl, function (object) {
             onModelLoaded(object, work);
           }, function (xhr) {
-            if (xhr.total > 0) {
-              const percent = Math.round((xhr.loaded / xhr.total) * 100);
+            if (xhr.lengthComputable && xhr.total > 0 && xhr.total >= xhr.loaded) {
+              const percent = Math.min(100, Math.round((xhr.loaded / xhr.total) * 100));
               loadingText.textContent = `正在从实时通道传输数据... ${percent}%`;
+            } else {
+              const loadedKB = Math.round(xhr.loaded / 1024);
+              let percent = (xhr.total > 0) ? Math.round((xhr.loaded / xhr.total) * 100) : 0;
+              if (percent > 100) percent = 99;
+              loadingText.textContent = `正在从实时通道传输数据... ${percent}% (${loadedKB} KB)`;
             }
           }, function (err2) {
             console.error(err2);
